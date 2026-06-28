@@ -1,0 +1,24 @@
+{
+  "manifest_version": 3,
+  "name": "Avision Immersive Translator",
+  "description": "Bilingual paragraph translation for web pages with a self-hosted LibreTranslate backend.",
+  "version": "0.1.0",
+  "action": {
+    "default_title": "Avision Translator",
+    "default_popup": "popup/popup.html"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["contentScript.js"],
+      "css": ["styles/injected.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "permissions": ["activeTab", "scripting", "storage"],
+  "host_permissions": ["<all_urls>"],
+  "options_page": "options/options.html"
+}

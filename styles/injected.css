@@ -1,0 +1,45 @@
+.avision-translator-translation {
+  margin: 0.35rem 0 0.85rem;
+  padding-left: 0.8rem;
+  border-left: 3px solid #2f7d6d;
+  color: #31524b;
+  font-size: 0.96em;
+  line-height: 1.65;
+}
+
+.avision-translator-error {
+  border-left-color: #b33636;
+  color: #8c2424;
+}
+
+.avision-translator-hidden .avision-translator-translation {
+  display: none !important;
+}
+
+.avision-youtube-caption-overlay {
+  position: absolute;
+  left: 50%;
+  bottom: 12%;
+  z-index: 2147483647;
+  width: min(86%, 980px);
+  transform: translateX(-50%);
+  border-radius: 6px;
+  padding: 8px 14px;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.78);
+  font-family: Arial, sans-serif;
+  font-size: clamp(16px, 2.1vw, 28px);
+  font-weight: 700;
+  line-height: 1.35;
+  text-align: center;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
+  pointer-events: none;
+}
+
+.avision-youtube-caption-error {
+  background: rgba(120, 24, 24, 0.86);
+}
+
+.avision-youtube-caption-hidden {
+  display: none !important;
+}
