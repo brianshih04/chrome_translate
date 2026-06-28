@@ -1,7 +1,15 @@
-const TRANSLATION_CLASS = "avision-translator-translation";
-const SELECTION_POPUP_CLASS = "avision-translator-selection-popup";
-const TRANSLATED_ATTR = "data-avision-translated";
-const CACHE_PREFIX = "v1:";
+(() => {
+if (globalThis.__avisionTranslatorContentScriptLoaded) {
+  return;
+}
+globalThis.__avisionTranslatorContentScriptLoaded = true;
+
+const AVISION_CONTENT = Object.freeze({
+  translationClass: "avision-translator-translation",
+  selectionPopupClass: "avision-translator-selection-popup",
+  translatedAttr: "data-avision-translated",
+  cachePrefix: "v1:"
+});
 const YOUTUBE_LATE_RESULT_GRACE_MS = 2500;
 const YOUTUBE_POLL_MS = 250;
 const YOUTUBE_STABLE_DELAY_MS = 220;
@@ -9,6 +17,7 @@ const YOUTUBE_VISIBLE_STALE_MS = 1400;
 const YOUTUBE_TRACK_POLL_MS = 250;
 const YOUTUBE_TRACK_INITIAL_LIMIT = 40;
 const YOUTUBE_TRACK_BACKGROUND_BATCH_SIZE = 60;
+const TRADITIONAL_CHINESE_CACHE_VERSION = "tc2";
 
 let pageVisible = true;
 let youtubeCaptionObserver = null;
@@ -108,7 +117,7 @@ async function translatePage(settings) {
     }
 
     const text = normalizeText(node.innerText);
-    if (!text || node.getAttribute(TRANSLATED_ATTR) === "true") {
+    if (!text || node.getAttribute(AVISION_CONTENT.translatedAttr) === "true") {
       skipped += 1;
       processed += 1;
       postPageTranslationProgress({ translated, skipped, failed, processed, total: nodes.length, phase: "running" });
@@ -129,7 +138,7 @@ async function translatePage(settings) {
       const result = await translateWithCache(text);
       placeholder.textContent = result.translatedText;
       placeholder.dataset.provider = result.provider;
-      node.setAttribute(TRANSLATED_ATTR, "true");
+      node.setAttribute(AVISION_CONTENT.translatedAttr, "true");
       translated += 1;
     } catch (error) {
       placeholder.textContent = `Translation failed: ${formatUserFacingError(error)}`;
@@ -163,7 +172,7 @@ function postPageTranslationProgress(summary) {
 }
 
 async function translateWithCache(text) {
-  const key = `${CACHE_PREFIX}${stableHash(text)}`;
+  const key = `${AVISION_CONTENT.cachePrefix}${stableHash(text)}`;
   if (memoryCache.has(key)) {
     return memoryCache.get(key);
   }
@@ -236,7 +245,7 @@ function isUsefulTextNode(node) {
     return false;
   }
 
-  if (node.closest(`.${TRANSLATION_CLASS}`)) {
+  if (node.closest(`.${AVISION_CONTENT.translationClass}`)) {
     return false;
   }
 
@@ -246,13 +255,13 @@ function isUsefulTextNode(node) {
 
 function insertTranslation(node, text) {
   const existing = node.nextElementSibling;
-  if (existing?.classList.contains(TRANSLATION_CLASS)) {
+  if (existing?.classList.contains(AVISION_CONTENT.translationClass)) {
     existing.textContent = text;
     return existing;
   }
 
   const translation = document.createElement("div");
-  translation.className = TRANSLATION_CLASS;
+  translation.className = AVISION_CONTENT.translationClass;
   translation.textContent = text;
   node.insertAdjacentElement("afterend", translation);
   return translation;
@@ -287,9 +296,9 @@ async function translateSelection() {
 }
 
 function showSelectionPopup(text, range) {
-  document.querySelector(`.${SELECTION_POPUP_CLASS}`)?.remove();
+  document.querySelector(`.${AVISION_CONTENT.selectionPopupClass}`)?.remove();
   const popup = document.createElement("div");
-  popup.className = SELECTION_POPUP_CLASS;
+  popup.className = AVISION_CONTENT.selectionPopupClass;
   popup.innerHTML = `
     <div class="avision-selection-toolbar">
       <button type="button" class="avision-selection-copy">Copy</button>
@@ -326,12 +335,12 @@ function updateSelectionPopup(popup, text) {
 }
 
 function clearPageTranslations() {
-  const translations = Array.from(document.querySelectorAll(`.${TRANSLATION_CLASS}`));
-  const selectionPopups = Array.from(document.querySelectorAll(`.${SELECTION_POPUP_CLASS}`));
+  const translations = Array.from(document.querySelectorAll(`.${AVISION_CONTENT.translationClass}`));
+  const selectionPopups = Array.from(document.querySelectorAll(`.${AVISION_CONTENT.selectionPopupClass}`));
   translations.forEach((node) => node.remove());
   selectionPopups.forEach((node) => node.remove());
-  document.querySelectorAll(`[${TRANSLATED_ATTR}="true"]`).forEach((node) => {
-    node.removeAttribute(TRANSLATED_ATTR);
+  document.querySelectorAll(`[${AVISION_CONTENT.translatedAttr}="true"]`).forEach((node) => {
+    node.removeAttribute(AVISION_CONTENT.translatedAttr);
   });
   document.documentElement.classList.remove("avision-translator-hidden");
   pageVisible = true;
@@ -540,7 +549,8 @@ function chunkArray(items, size) {
 function buildYoutubeCaptionCacheKey(videoId, track, caption, settings) {
   const provider = settings.provider || "libretranslate";
   const target = settings.targetLanguage || "zh-Hant";
-  return `yt:${videoId}:${track.languageCode || "unknown"}:${provider}:${target}:${Math.round(caption.start * 1000)}:${stableHash(caption.text)}`;
+  const targetCacheVersion = target === "zh-Hant" ? TRADITIONAL_CHINESE_CACHE_VERSION : "base";
+  return `yt:${videoId}:${track.languageCode || "unknown"}:${provider}:${target}:${targetCacheVersion}:${Math.round(caption.start * 1000)}:${stableHash(caption.text)}`;
 }
 
 function updateYoutubeTrackOverlay() {
@@ -771,3 +781,5 @@ function stableHash(text) {
   }
   return (hash >>> 0).toString(36);
 }
+
+})();

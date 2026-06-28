@@ -128,6 +128,21 @@ async function ensureContentScript(tabId) {
     }
   }
 
+  try {
+    const [probe] = await chrome.scripting.executeScript({
+      target: { tabId },
+      func: () => Boolean(globalThis.__avisionTranslatorContentScriptLoaded)
+    });
+    if (probe?.result) {
+      return;
+    }
+  } catch (error) {
+    const message = error.message || String(error);
+    if (!message.includes("Cannot access") && !message.includes("No tab with id")) {
+      throw error;
+    }
+  }
+
   await chrome.scripting.insertCSS({
     target: { tabId },
     files: ["styles/injected.css"]

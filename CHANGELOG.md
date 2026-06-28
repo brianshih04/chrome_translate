@@ -32,6 +32,10 @@
 - Improved selected-text translation popups with Copy and Close controls.
 - Reworded extension reload/context errors so users are told to refresh the tab instead of seeing `Extension context invalidated`.
 - Added appearance settings for translation font, page translation size, and YouTube caption size.
+- Expanded Traditional Chinese post-processing with provider-wide cleanup and a larger Simplified-to-Traditional character map.
+- Bumped the Traditional Chinese YouTube caption cache key so old cached Simplified Chinese results are not reused.
+- Wrapped the content script in a function scope with a load guard so popup reinjection does not throw duplicate `const` declaration errors.
+- Removed legacy top-level content-script identifier names and added a popup-side load probe before reinjecting the script.
 - Added provider fallback setting. When enabled, failed non-LibreTranslate providers fall back to LibreTranslate.
 - Created the Chrome MV3 extension MVP.
 - Added popup controls for translating the current page and toggling translations.
