@@ -72,6 +72,17 @@ button {
   cursor: pointer;
 }
 
+.buttonRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+button.secondary {
+  color: #153a33;
+  background: #cce5df;
+}
+
 #status {
   min-height: 18px;
   color: #425b55;

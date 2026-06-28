@@ -9,9 +9,14 @@ Chrome MV3 extension for bilingual paragraph translation.
 - Translates readable page paragraphs and inserts the translation under the original text.
 - Translates selected page text in a small popup.
 - Clears inserted page translations from the current page.
+- Detects likely article/main content before scanning paragraphs.
+- Shows page translation progress and supports cancelling an active page translation.
+- Provides copy and close controls for selected-text translation popups.
 - Adds experimental YouTube caption translation with caption-track mode and live DOM fallback.
 - Lets users choose YouTube caption mode: Auto, Caption track only, or Live visible captions only.
 - Batches and locally caches YouTube caption-track translations with `chrome.storage.local`.
+- Translates an initial YouTube caption batch first, then continues translating the rest of the video in the background.
+- Provides cache stats and clear-cache controls in Settings.
 - Falls back to LibreTranslate when a selected provider such as Google Apps Script fails, if fallback is enabled.
 - Saves settings in `chrome.storage.sync`.
 - Keeps settings slots for Azure Translator, OpenAI, Google Cloud Translation, and DeepL for later provider adapters.
@@ -28,7 +33,7 @@ Chrome MV3 extension for bilingual paragraph translation.
 
 LibreTranslate currently exposes Traditional Chinese as `zh-Hant`, Simplified Chinese as `zh-Hans`, and Russian as `ru`. The MVP defaults to Traditional Chinese.
 
-YouTube caption-track mode pretranslates an initial batch of captions and stores translated caption text locally. Replaying the same video and caption track should reuse cached translations.
+YouTube caption-track mode translates an initial batch first, starts playback-ready overlays, then continues translating the rest of the video in the background. Translated caption text is stored locally. Replaying the same video and caption track should reuse cached translations.
 
 ## Google Apps Script Provider
 

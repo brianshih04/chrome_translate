@@ -1,5 +1,9 @@
 const form = document.querySelector("#settingsForm");
 const statusEl = document.querySelector("#status");
+const cacheStatsEl = document.querySelector("#cacheStats");
+const refreshCacheButton = document.querySelector("#refreshCache");
+const clearYoutubeCacheButton = document.querySelector("#clearYoutubeCache");
+const clearAllCacheButton = document.querySelector("#clearAllCache");
 
 const fields = {
   provider: document.querySelector("#provider"),
@@ -22,6 +26,7 @@ const fields = {
 };
 
 loadSettings();
+loadCacheStats();
 
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -32,6 +37,16 @@ form.addEventListener("submit", async (event) => {
     return;
   }
   setStatus("Settings saved.");
+});
+
+refreshCacheButton.addEventListener("click", loadCacheStats);
+
+clearYoutubeCacheButton.addEventListener("click", async () => {
+  await clearCache("youtube");
+});
+
+clearAllCacheButton.addEventListener("click", async () => {
+  await clearCache("all");
 });
 
 async function loadSettings() {
@@ -97,4 +112,36 @@ function readSettings() {
 
 function setStatus(text) {
   statusEl.textContent = text;
+}
+
+async function loadCacheStats() {
+  const response = await chrome.runtime.sendMessage({ type: "getCacheStats" });
+  if (!response?.ok) {
+    cacheStatsEl.textContent = response?.error || "Could not load cache stats.";
+    return;
+  }
+
+  const stats = response.stats;
+  cacheStatsEl.textContent = `YouTube: ${stats.youtubeItems} item(s), ${formatBytes(stats.youtubeBytes)}. Total: ${stats.totalItems} item(s), ${formatBytes(stats.totalBytes)}.`;
+}
+
+async function clearCache(scope) {
+  const response = await chrome.runtime.sendMessage({ type: "clearTranslationCache", scope });
+  if (!response?.ok) {
+    setStatus(response?.error || "Could not clear cache.");
+    return;
+  }
+
+  setStatus(`Cleared ${response.summary.removed} cache item(s).`);
+  await loadCacheStats();
+}
+
+function formatBytes(bytes) {
+  if (bytes < 1024) {
+    return `${bytes} B`;
+  }
+  if (bytes < 1024 * 1024) {
+    return `${(bytes / 1024).toFixed(1)} KB`;
+  }
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }

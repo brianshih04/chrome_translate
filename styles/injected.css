@@ -31,6 +31,30 @@
   line-height: 1.55;
 }
 
+.avision-selection-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.avision-selection-toolbar button {
+  min-height: 28px;
+  border: 1px solid #bed1cc;
+  border-radius: 5px;
+  padding: 0 8px;
+  color: #214941;
+  background: #f7faf8;
+  font-family: Arial, sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.avision-selection-body {
+  white-space: pre-wrap;
+}
+
 .avision-youtube-caption-overlay {
   position: absolute;
   left: 50%;

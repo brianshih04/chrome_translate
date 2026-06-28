@@ -1,10 +1,12 @@
 const translateButton = document.querySelector("#translatePage");
+const cancelButton = document.querySelector("#cancelTranslation");
 const selectionButton = document.querySelector("#translateSelection");
 const youtubeButton = document.querySelector("#youtubeCaptions");
 const toggleButton = document.querySelector("#toggleTranslations");
 const clearButton = document.querySelector("#clearTranslations");
 const optionsButton = document.querySelector("#openOptions");
 const statusEl = document.querySelector("#status");
+const progressEl = document.querySelector("#progress");
 const providerLabel = document.querySelector("#providerLabel");
 
 init();
@@ -18,6 +20,10 @@ async function init() {
 
 translateButton.addEventListener("click", async () => {
   await sendToActiveTab({ type: "translatePage" }, "Translating...");
+});
+
+cancelButton.addEventListener("click", async () => {
+  await sendCancelToActiveTab();
 });
 
 selectionButton.addEventListener("click", async () => {
@@ -42,6 +48,9 @@ optionsButton.addEventListener("click", () => {
 
 async function sendToActiveTab(message, pendingText) {
   setBusy(true, pendingText);
+  if (message.type === "translatePage") {
+    showProgress(true, 0, 1);
+  }
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     assertSupportedTab(tab);
@@ -54,7 +63,8 @@ async function sendToActiveTab(message, pendingText) {
     if (message.type === "translatePage") {
       const { translated, skipped, failed } = response.summary;
       const reason = response.summary.reason ? ` ${response.summary.reason}` : "";
-      setStatus(`Translated ${translated}. Skipped ${skipped}. Failed ${failed}.${reason}`);
+      const prefix = response.summary.cancelled ? "Cancelled." : "Done.";
+      setStatus(`${prefix} Translated ${translated}. Skipped ${skipped}. Failed ${failed}.${reason}`);
     } else if (message.type === "translateSelection") {
       if (response.summary.translated) {
         setStatus(`Selection translated (${response.summary.characters} chars).`);
@@ -65,7 +75,7 @@ async function sendToActiveTab(message, pendingText) {
       setStatus(`Cleared ${response.summary.removed} translation item(s).`);
     } else if (message.type === "startYoutubeCaptions") {
       if (response.summary?.mode === "youtubeTrack") {
-        setStatus(`YouTube track mode ready. Captions: ${response.summary.captions}.`);
+        setStatus(`YouTube track ready. Initial: ${response.summary.captions}/${response.summary.totalCaptions || response.summary.captions}.`);
       } else {
         const reason = response.summary?.fallbackReason ? ` ${response.summary.fallbackReason}` : "";
         setStatus(`YouTube live mode running.${reason}`);
@@ -76,7 +86,32 @@ async function sendToActiveTab(message, pendingText) {
   } catch (error) {
     setStatus(error.message || String(error));
   } finally {
+    if (message.type === "translatePage") {
+      showProgress(false);
+    }
     setBusy(false);
+  }
+}
+
+chrome.runtime.onMessage.addListener((message) => {
+  if (message?.type !== "pageTranslationProgress") {
+    return;
+  }
+
+  const summary = message.summary || {};
+  const processed = Number(summary.processed || 0);
+  const total = Math.max(1, Number(summary.total || 1));
+  showProgress(true, processed, total);
+  setStatus(`Translating ${processed}/${total}. Done ${summary.translated || 0}, skipped ${summary.skipped || 0}, failed ${summary.failed || 0}.`);
+});
+
+async function sendCancelToActiveTab() {
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    await chrome.tabs.sendMessage(tab.id, { type: "cancelPageTranslation" });
+    setStatus("Cancelling after the current paragraph...");
+  } catch (error) {
+    setStatus(error.message || String(error));
   }
 }
 
@@ -121,11 +156,19 @@ function assertSupportedTab(tab) {
 
 function setBusy(isBusy, text = "") {
   translateButton.disabled = isBusy;
+  cancelButton.classList.toggle("hidden", !isBusy);
+  cancelButton.disabled = !isBusy;
   selectionButton.disabled = isBusy;
   youtubeButton.disabled = isBusy;
   toggleButton.disabled = isBusy;
   clearButton.disabled = isBusy;
   setStatus(text);
+}
+
+function showProgress(show, value = 0, max = 1) {
+  progressEl.classList.toggle("hidden", !show);
+  progressEl.max = max;
+  progressEl.value = value;
 }
 
 function setStatus(text) {

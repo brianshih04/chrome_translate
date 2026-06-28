@@ -7,7 +7,8 @@ const YOUTUBE_POLL_MS = 250;
 const YOUTUBE_STABLE_DELAY_MS = 220;
 const YOUTUBE_VISIBLE_STALE_MS = 1400;
 const YOUTUBE_TRACK_POLL_MS = 250;
-const YOUTUBE_TRACK_PREFETCH_LIMIT = 80;
+const YOUTUBE_TRACK_INITIAL_LIMIT = 40;
+const YOUTUBE_TRACK_BACKGROUND_BATCH_SIZE = 60;
 
 let pageVisible = true;
 let youtubeCaptionObserver = null;
@@ -20,6 +21,8 @@ let youtubePollTimer = null;
 let youtubeRequestId = 0;
 let youtubeTrackMode = null;
 let youtubeTrackTimer = null;
+let youtubeTrackBackgroundRunning = false;
+let pageTranslationCancelRequested = false;
 const memoryCache = new Map();
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -38,6 +41,11 @@ async function handleContentMessage(message) {
     const settings = await requestSettings();
     const summary = await translatePage(settings);
     return { ok: true, summary };
+  }
+
+  if (message?.type === "cancelPageTranslation") {
+    pageTranslationCancelRequested = true;
+    return { ok: true };
   }
 
   if (message?.type === "toggleTranslations") {
@@ -71,12 +79,14 @@ async function requestSettings() {
 }
 
 async function translatePage(settings) {
+  pageTranslationCancelRequested = false;
   const nodes = findTranslatableNodes();
   const maxCharacters = Number(settings.maxCharactersPerPage || 60000);
   let usedCharacters = 0;
   let translated = 0;
   let skipped = 0;
   let failed = 0;
+  let processed = 0;
 
   if (!nodes.length) {
     return {
@@ -88,15 +98,26 @@ async function translatePage(settings) {
     };
   }
 
+  postPageTranslationProgress({ translated, skipped, failed, processed, total: nodes.length, phase: "started" });
+
   for (const node of nodes) {
+    if (pageTranslationCancelRequested) {
+      postPageTranslationProgress({ translated, skipped, failed, processed, total: nodes.length, phase: "cancelled" });
+      break;
+    }
+
     const text = normalizeText(node.innerText);
     if (!text || node.getAttribute(TRANSLATED_ATTR) === "true") {
       skipped += 1;
+      processed += 1;
+      postPageTranslationProgress({ translated, skipped, failed, processed, total: nodes.length, phase: "running" });
       continue;
     }
 
     if (usedCharacters + text.length > maxCharacters) {
       skipped += 1;
+      processed += 1;
+      postPageTranslationProgress({ translated, skipped, failed, processed, total: nodes.length, phase: "running" });
       continue;
     }
 
@@ -114,17 +135,30 @@ async function translatePage(settings) {
       placeholder.classList.add("avision-translator-error");
       failed += 1;
     }
+
+    processed += 1;
+    postPageTranslationProgress({ translated, skipped, failed, processed, total: nodes.length, phase: "running" });
   }
 
   pageVisible = true;
   document.documentElement.classList.remove("avision-translator-hidden");
+  const cancelled = pageTranslationCancelRequested;
+  pageTranslationCancelRequested = false;
+  postPageTranslationProgress({ translated, skipped, failed, processed, total: nodes.length, phase: cancelled ? "cancelled" : "done" });
   return {
     translated,
     skipped,
     failed,
+    processed,
+    total: nodes.length,
     characters: usedCharacters,
+    cancelled,
     reason: translated ? "" : "No new paragraphs were translated. The page may already be translated or the text limit was reached."
   };
+}
+
+function postPageTranslationProgress(summary) {
+  chrome.runtime.sendMessage({ type: "pageTranslationProgress", summary }).catch(() => {});
 }
 
 async function translateWithCache(text) {
@@ -151,10 +185,8 @@ async function translateBatchWithCache(texts) {
 }
 
 function findTranslatableNodes() {
+  const root = findMainContentRoot();
   const selectors = [
-    "main p",
-    "article p",
-    "section p",
     "p",
     "li",
     "blockquote",
@@ -164,9 +196,38 @@ function findTranslatableNodes() {
     "h4"
   ];
 
-  return Array.from(document.querySelectorAll(selectors.join(",")))
+  return Array.from(root.querySelectorAll(selectors.join(",")))
     .filter(isUsefulTextNode)
     .filter((node, index, list) => list.indexOf(node) === index);
+}
+
+function findMainContentRoot() {
+  const direct = document.querySelector("article, main, [role='main']");
+  if (direct && scoreContentRoot(direct) >= 120) {
+    return direct;
+  }
+
+  const candidates = Array.from(document.querySelectorAll("article, main, [role='main'], section, .article, .post, .entry-content, .content, #content"))
+    .filter((node) => !node.closest("nav,footer,header,aside"));
+
+  let best = document.body;
+  let bestScore = scoreContentRoot(document.body) * 0.45;
+  for (const candidate of candidates) {
+    const score = scoreContentRoot(candidate);
+    if (score > bestScore) {
+      best = candidate;
+      bestScore = score;
+    }
+  }
+
+  return best || document.body;
+}
+
+function scoreContentRoot(node) {
+  const paragraphs = Array.from(node.querySelectorAll("p, li, blockquote"));
+  const textLength = normalizeText(node.innerText).length;
+  const paragraphLength = paragraphs.reduce((total, item) => total + normalizeText(item.innerText).length, 0);
+  return paragraphLength + paragraphs.length * 40 + Math.min(textLength, 2000) * 0.1;
 }
 
 function isUsefulTextNode(node) {
@@ -212,11 +273,11 @@ async function translateSelection() {
 
   try {
     const result = await translateWithCache(text);
-    popup.textContent = result.translatedText;
+    updateSelectionPopup(popup, result.translatedText);
     popup.dataset.provider = result.provider;
     return { translated: true, characters: text.length };
   } catch (error) {
-    popup.textContent = `Translation failed: ${error.message || error}`;
+    updateSelectionPopup(popup, `Translation failed: ${error.message || error}`);
     popup.classList.add("avision-translator-error");
     return { translated: false, reason: error.message || String(error) };
   }
@@ -226,7 +287,19 @@ function showSelectionPopup(text, range) {
   document.querySelector(`.${SELECTION_POPUP_CLASS}`)?.remove();
   const popup = document.createElement("div");
   popup.className = SELECTION_POPUP_CLASS;
-  popup.textContent = text;
+  popup.innerHTML = `
+    <div class="avision-selection-toolbar">
+      <button type="button" class="avision-selection-copy">Copy</button>
+      <button type="button" class="avision-selection-close">Close</button>
+    </div>
+    <div class="avision-selection-body"></div>
+  `;
+  updateSelectionPopup(popup, text);
+  popup.querySelector(".avision-selection-close").addEventListener("click", () => popup.remove());
+  popup.querySelector(".avision-selection-copy").addEventListener("click", async () => {
+    const body = popup.querySelector(".avision-selection-body");
+    await navigator.clipboard.writeText(body?.textContent || "");
+  });
   document.body.appendChild(popup);
 
   const rect = range?.getBoundingClientRect();
@@ -238,6 +311,15 @@ function showSelectionPopup(text, range) {
   popup.style.top = `${top}px`;
   popup.style.left = `${Math.max(12, left)}px`;
   return popup;
+}
+
+function updateSelectionPopup(popup, text) {
+  const body = popup.querySelector(".avision-selection-body");
+  if (body) {
+    body.textContent = text;
+  } else {
+    popup.textContent = text;
+  }
 }
 
 function clearPageTranslations() {
@@ -316,11 +398,14 @@ async function tryStartYoutubeTrackMode() {
     }
 
     const settings = await requestSettings();
-    const translatedCaptions = await translateYoutubeCaptionEntries(captions.slice(0, YOUTUBE_TRACK_PREFETCH_LIMIT), videoId, track, settings);
+    const initialCaptions = captions.slice(0, YOUTUBE_TRACK_INITIAL_LIMIT);
+    const translatedCaptions = await translateYoutubeCaptionEntries(initialCaptions, videoId, track, settings);
     youtubeTrackMode = {
       video,
       videoId,
       track,
+      settings,
+      allCaptions: captions,
       captions: translatedCaptions,
       lastIndex: -1
     };
@@ -329,9 +414,33 @@ async function tryStartYoutubeTrackMode() {
       youtubeTrackTimer = window.setInterval(updateYoutubeTrackOverlay, YOUTUBE_TRACK_POLL_MS);
     }
     updateYoutubeTrackOverlay();
-    return { ok: true, mode: "youtubeTrack", captions: translatedCaptions.length, language: track.languageCode };
+    translateRemainingYoutubeCaptionsInBackground();
+    return {
+      ok: true,
+      mode: "youtubeTrack",
+      captions: translatedCaptions.length,
+      totalCaptions: captions.length,
+      language: track.languageCode
+    };
   } catch (error) {
     return { ok: false, error: error.message || String(error) };
+  }
+}
+
+async function translateRemainingYoutubeCaptionsInBackground() {
+  if (!youtubeTrackMode || youtubeTrackBackgroundRunning) {
+    return;
+  }
+
+  youtubeTrackBackgroundRunning = true;
+  try {
+    for (let start = youtubeTrackMode.captions.length; start < youtubeTrackMode.allCaptions.length; start += YOUTUBE_TRACK_BACKGROUND_BATCH_SIZE) {
+      const batch = youtubeTrackMode.allCaptions.slice(start, start + YOUTUBE_TRACK_BACKGROUND_BATCH_SIZE);
+      const translated = await translateYoutubeCaptionEntries(batch, youtubeTrackMode.videoId, youtubeTrackMode.track, youtubeTrackMode.settings);
+      youtubeTrackMode.captions.splice(start, translated.length, ...translated);
+    }
+  } finally {
+    youtubeTrackBackgroundRunning = false;
   }
 }
 

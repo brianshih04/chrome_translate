@@ -25,6 +25,11 @@
 - Added Google Apps Script as a selectable translation provider with a user-configurable Web App URL.
 - Added YouTube caption-track batch translation and persistent local caption cache using `chrome.storage.local`.
 - Added merged batch translation in the background provider router, with fallback to per-segment translation if a provider does not preserve segment markers.
+- Added cache management controls in Settings for viewing cache stats and clearing YouTube or all translation cache items.
+- Added YouTube caption-track background translation so the initial caption batch becomes available first while the rest of the video continues translating in batches.
+- Added article/main-content detection for page translation to reduce sidebar, navigation, and footer translation noise.
+- Added page translation progress updates and a Stop control in the popup.
+- Improved selected-text translation popups with Copy and Close controls.
 - Added provider fallback setting. When enabled, failed non-LibreTranslate providers fall back to LibreTranslate.
 - Created the Chrome MV3 extension MVP.
 - Added popup controls for translating the current page and toggling translations.

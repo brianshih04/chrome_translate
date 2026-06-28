@@ -70,6 +70,18 @@ async function handleMessage(message) {
     return { ok: true, results };
   }
 
+  if (message?.type === "getCacheStats") {
+    return { ok: true, stats: await getCacheStats() };
+  }
+
+  if (message?.type === "clearTranslationCache") {
+    return { ok: true, summary: await clearTranslationCache(message.scope || "all") };
+  }
+
+  if (message?.type === "pageTranslationProgress") {
+    return { ok: true };
+  }
+
   throw new Error(`Unknown message type: ${message?.type}`);
 }
 
@@ -88,6 +100,41 @@ function mergeSettings(base, override) {
     }
   }
   return output;
+}
+
+async function getCacheStats() {
+  const data = await chrome.storage.local.get(null);
+  const keys = Object.keys(data);
+  const youtubeKeys = keys.filter((key) => key.startsWith("yt:"));
+  const allSize = estimateStorageSize(data, keys);
+  const youtubeSize = estimateStorageSize(data, youtubeKeys);
+  return {
+    totalItems: keys.length,
+    totalBytes: allSize,
+    youtubeItems: youtubeKeys.length,
+    youtubeBytes: youtubeSize
+  };
+}
+
+async function clearTranslationCache(scope) {
+  const data = await chrome.storage.local.get(null);
+  const keys = Object.keys(data);
+  const removeKeys = scope === "youtube"
+    ? keys.filter((key) => key.startsWith("yt:"))
+    : keys;
+  if (removeKeys.length) {
+    await chrome.storage.local.remove(removeKeys);
+  }
+  return {
+    removed: removeKeys.length,
+    scope
+  };
+}
+
+function estimateStorageSize(data, keys) {
+  return keys.reduce((total, key) => {
+    return total + key.length + JSON.stringify(data[key] ?? "").length;
+  }, 0);
 }
 
 async function translateText(text, settings) {
