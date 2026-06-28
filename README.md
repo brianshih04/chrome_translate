@@ -17,6 +17,7 @@ Chrome MV3 extension for bilingual paragraph translation.
 - Batches and locally caches YouTube caption-track translations with `chrome.storage.local`.
 - Translates an initial YouTube caption batch first, then continues translating the rest of the video in the background.
 - Provides cache stats and clear-cache controls in Settings.
+- Lets users customize the translation font and separate page/YouTube translation font sizes.
 - Falls back to LibreTranslate when a selected provider such as Google Apps Script fails, if fallback is enabled.
 - Saves settings in `chrome.storage.sync`.
 - Keeps settings slots for Azure Translator, OpenAI, Google Cloud Translation, and DeepL for later provider adapters.

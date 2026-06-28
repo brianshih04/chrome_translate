@@ -79,6 +79,7 @@ async function requestSettings() {
 }
 
 async function translatePage(settings) {
+  applyTranslationAppearance(settings);
   pageTranslationCancelRequested = false;
   const nodes = findTranslatableNodes();
   const maxCharacters = Number(settings.maxCharactersPerPage || 60000);
@@ -258,6 +259,8 @@ function insertTranslation(node, text) {
 }
 
 async function translateSelection() {
+  const settings = await requestSettings();
+  applyTranslationAppearance(settings);
   const selection = window.getSelection();
   const text = normalizeText(selection?.toString());
   if (!text) {
@@ -341,6 +344,7 @@ async function startYoutubeCaptionTranslation() {
   }
 
   const settings = await requestSettings();
+  applyTranslationAppearance(settings);
   const mode = settings.youtubeMode || "auto";
   ensureYoutubeOverlay();
 
@@ -706,6 +710,38 @@ function ensureYoutubeOverlay() {
   overlay.textContent = "";
   player.appendChild(overlay);
   return overlay;
+}
+
+function applyTranslationAppearance(settings) {
+  const appearance = settings?.appearance || {};
+  const fontFamily = sanitizeFontFamily(appearance.fontFamily);
+  const pageFontSize = clampNumber(appearance.pageFontSize, 10, 32, 16);
+  const youtubeFontSize = clampNumber(appearance.youtubeFontSize, 14, 48, 24);
+
+  document.documentElement.style.setProperty("--avision-translation-font-family", fontFamily);
+  document.documentElement.style.setProperty("--avision-page-translation-font-size", `${pageFontSize}px`);
+  document.documentElement.style.setProperty("--avision-youtube-caption-font-size", `${youtubeFontSize}px`);
+}
+
+function sanitizeFontFamily(fontFamily) {
+  const allowed = new Set([
+    "Arial, sans-serif",
+    "'Noto Sans TC', 'Microsoft JhengHei', sans-serif",
+    "'Microsoft JhengHei', sans-serif",
+    "'PingFang TC', sans-serif",
+    "'Times New Roman', serif",
+    "Georgia, serif",
+    "'Courier New', monospace"
+  ]);
+  return allowed.has(fontFamily) ? fontFamily : "Arial, sans-serif";
+}
+
+function clampNumber(value, min, max, fallback) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) {
+    return fallback;
+  }
+  return Math.min(max, Math.max(min, number));
 }
 
 function normalizeText(text) {

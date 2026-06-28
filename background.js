@@ -5,6 +5,11 @@ const DEFAULT_SETTINGS = {
   maxCharactersPerPage: 60000,
   youtubeMode: "auto",
   fallbackProvider: "libretranslate",
+  appearance: {
+    fontFamily: "Arial, sans-serif",
+    pageFontSize: 16,
+    youtubeFontSize: 24
+  },
   libretranslate: {
     endpoint: "https://translate.avision-gb10.org",
     apiKey: ""

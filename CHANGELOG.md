@@ -31,6 +31,7 @@
 - Added page translation progress updates and a Stop control in the popup.
 - Improved selected-text translation popups with Copy and Close controls.
 - Reworded extension reload/context errors so users are told to refresh the tab instead of seeing `Extension context invalidated`.
+- Added appearance settings for translation font, page translation size, and YouTube caption size.
 - Added provider fallback setting. When enabled, failed non-LibreTranslate providers fall back to LibreTranslate.
 - Created the Chrome MV3 extension MVP.
 - Added popup controls for translating the current page and toggling translations.

@@ -12,6 +12,9 @@ const fields = {
   maxCharactersPerPage: document.querySelector("#maxCharactersPerPage"),
   youtubeMode: document.querySelector("#youtubeMode"),
   fallbackProvider: document.querySelector("#fallbackProvider"),
+  translationFontFamily: document.querySelector("#translationFontFamily"),
+  pageFontSize: document.querySelector("#pageFontSize"),
+  youtubeFontSize: document.querySelector("#youtubeFontSize"),
   libreEndpoint: document.querySelector("#libreEndpoint"),
   libreApiKey: document.querySelector("#libreApiKey"),
   gasEndpoint: document.querySelector("#gasEndpoint"),
@@ -63,6 +66,9 @@ async function loadSettings() {
   fields.maxCharactersPerPage.value = settings.maxCharactersPerPage;
   fields.youtubeMode.value = settings.youtubeMode || "auto";
   fields.fallbackProvider.value = settings.fallbackProvider || "libretranslate";
+  fields.translationFontFamily.value = settings.appearance?.fontFamily || "Arial, sans-serif";
+  fields.pageFontSize.value = settings.appearance?.pageFontSize || 16;
+  fields.youtubeFontSize.value = settings.appearance?.youtubeFontSize || 24;
   fields.libreEndpoint.value = settings.libretranslate.endpoint;
   fields.libreApiKey.value = settings.libretranslate.apiKey;
   fields.gasEndpoint.value = settings.gas?.endpoint || "";
@@ -84,6 +90,11 @@ function readSettings() {
     maxCharactersPerPage: Number(fields.maxCharactersPerPage.value || 60000),
     youtubeMode: fields.youtubeMode.value,
     fallbackProvider: fields.fallbackProvider.value,
+    appearance: {
+      fontFamily: fields.translationFontFamily.value,
+      pageFontSize: clampNumber(fields.pageFontSize.value, 10, 32, 16),
+      youtubeFontSize: clampNumber(fields.youtubeFontSize.value, 14, 48, 24)
+    },
     libretranslate: {
       endpoint: fields.libreEndpoint.value,
       apiKey: fields.libreApiKey.value
@@ -108,6 +119,14 @@ function readSettings() {
       apiKey: fields.deeplApiKey.value
     }
   };
+}
+
+function clampNumber(value, min, max, fallback) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) {
+    return fallback;
+  }
+  return Math.min(max, Math.max(min, number));
 }
 
 function setStatus(text) {

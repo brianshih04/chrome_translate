@@ -78,6 +78,12 @@ button {
   gap: 10px;
 }
 
+.twoColumn {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 button.secondary {
   color: #153a33;
   background: #cce5df;
@@ -87,4 +93,10 @@ button.secondary {
   min-height: 18px;
   color: #425b55;
   font-size: 13px;
+}
+
+@media (max-width: 640px) {
+  .twoColumn {
+    grid-template-columns: 1fr;
+  }
 }

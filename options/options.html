@@ -70,6 +70,33 @@
         </section>
 
         <section>
+          <h2>Appearance</h2>
+          <label>
+            Translation font
+            <select id="translationFontFamily">
+              <option value="Arial, sans-serif">Arial</option>
+              <option value="'Noto Sans TC', 'Microsoft JhengHei', sans-serif">Noto Sans TC / Microsoft JhengHei</option>
+              <option value="'Microsoft JhengHei', sans-serif">Microsoft JhengHei</option>
+              <option value="'PingFang TC', sans-serif">PingFang TC</option>
+              <option value="'Times New Roman', serif">Times New Roman</option>
+              <option value="Georgia, serif">Georgia</option>
+              <option value="'Courier New', monospace">Courier New</option>
+            </select>
+          </label>
+
+          <div class="twoColumn">
+            <label>
+              Page translation size
+              <input id="pageFontSize" type="number" min="10" max="32" step="1">
+            </label>
+            <label>
+              YouTube caption size
+              <input id="youtubeFontSize" type="number" min="14" max="48" step="1">
+            </label>
+          </div>
+        </section>
+
+        <section>
           <h2>LibreTranslate</h2>
           <label>
             Endpoint
