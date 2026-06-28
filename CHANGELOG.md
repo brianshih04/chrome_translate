@@ -17,6 +17,15 @@
 - Tuned YouTube caption timing with a short late-result grace window, faster polling, and stale-result guards so slower translations can still appear briefly without overwriting newer captions.
 - Debounced YouTube caption updates and removed the visible `Translating...` placeholder so rapidly changing captions do not keep the overlay stuck in a loading state.
 - Updated YouTube caption overlay behavior to keep the previous completed translation visible until the next translation result is ready or the caption grace window expires.
+- Added experimental YouTube caption track mode that reads `ytInitialPlayerResponse` caption tracks, fetches `json3` timed captions, pretranslates an initial batch, and displays translations by video time.
+- Added fallback from YouTube caption track mode to live DOM caption mode when no usable track is found or the timed text request fails.
+- Added a user-selectable YouTube caption mode setting: Auto, Caption track only, or Live visible captions only.
+- Added popup controls for translating selected page text and clearing inserted page translations.
+- Improved page translation status messages for empty pages, already translated pages, selected-text errors, and clear counts.
+- Added Google Apps Script as a selectable translation provider with a user-configurable Web App URL.
+- Added YouTube caption-track batch translation and persistent local caption cache using `chrome.storage.local`.
+- Added merged batch translation in the background provider router, with fallback to per-segment translation if a provider does not preserve segment markers.
+- Added provider fallback setting. When enabled, failed non-LibreTranslate providers fall back to LibreTranslate.
 - Created the Chrome MV3 extension MVP.
 - Added popup controls for translating the current page and toggling translations.
 - Added content script support for scanning readable paragraphs, headings, list items, and blockquotes.

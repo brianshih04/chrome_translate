@@ -3,6 +3,8 @@ const DEFAULT_SETTINGS = {
   sourceLanguage: "auto",
   targetLanguage: "zh-Hant",
   maxCharactersPerPage: 60000,
+  youtubeMode: "auto",
+  fallbackProvider: "libretranslate",
   libretranslate: {
     endpoint: "https://translate.avision-gb10.org",
     apiKey: ""
@@ -18,6 +20,9 @@ const DEFAULT_SETTINGS = {
   },
   google: {
     apiKey: ""
+  },
+  gas: {
+    endpoint: ""
   },
   deepl: {
     endpoint: "https://api-free.deepl.com/v2/translate",
@@ -58,6 +63,13 @@ async function handleMessage(message) {
     return { ok: true, result };
   }
 
+  if (message?.type === "translateBatch") {
+    const settings = await getSettings();
+    const texts = Array.isArray(message.texts) ? message.texts : [];
+    const results = await translateBatch(texts, settings);
+    return { ok: true, results };
+  }
+
   throw new Error(`Unknown message type: ${message?.type}`);
 }
 
@@ -80,11 +92,172 @@ function mergeSettings(base, override) {
 
 async function translateText(text, settings) {
   const provider = settings.provider || "libretranslate";
+  try {
+    return await translateTextWithProvider(text, settings, provider);
+  } catch (error) {
+    const fallbackProvider = settings.fallbackProvider || "none";
+    if (provider !== "libretranslate" && fallbackProvider === "libretranslate") {
+      const result = await translateTextWithProvider(text, settings, "libretranslate");
+      return {
+        ...result,
+        provider: `${provider}->${result.provider}`,
+        fallbackReason: error.message || String(error)
+      };
+    }
+    throw error;
+  }
+}
+
+async function translateTextWithProvider(text, settings, provider) {
   if (provider === "libretranslate") {
     return translateWithLibreTranslate(text, settings);
   }
-
+  if (provider === "gas") {
+    return translateWithGoogleAppsScript(text, settings);
+  }
   throw new Error(`${provider} provider is reserved but not implemented in this MVP.`);
+}
+
+async function translateBatch(texts, settings) {
+  const merged = await tryTranslateMergedBatch(texts, settings);
+  if (merged) {
+    return merged;
+  }
+
+  const output = [];
+  for (const text of texts) {
+    output.push(await translateText(text, settings));
+  }
+  return output;
+}
+
+async function tryTranslateMergedBatch(texts, settings) {
+  const cleanTexts = texts.map((text) => String(text || "").trim());
+  if (cleanTexts.length < 2 || cleanTexts.some((text) => !text || text.length > 500)) {
+    return null;
+  }
+
+  const separatorPrefix = "AVISION_SEGMENT_";
+  const mergedText = cleanTexts
+    .map((text, index) => `${separatorPrefix}${index}\n${text}`)
+    .join(`\n${separatorPrefix}END\n`);
+
+  if (mergedText.length > 4500) {
+    return null;
+  }
+
+  try {
+    const result = await translateText(mergedText, settings);
+    const pieces = splitMergedBatchResult(result.translatedText, cleanTexts.length, separatorPrefix);
+    if (!pieces) {
+      return null;
+    }
+
+    return pieces.map((translatedText) => ({
+      translatedText,
+      provider: `${result.provider}-batch`
+    }));
+  } catch (error) {
+    return null;
+  }
+}
+
+function splitMergedBatchResult(text, expectedCount, separatorPrefix) {
+  const normalized = String(text || "").replace(/\r/g, "");
+  const pieces = [];
+
+  for (let index = 0; index < expectedCount; index += 1) {
+    const current = normalized.indexOf(`${separatorPrefix}${index}`);
+    const next = index + 1 < expectedCount
+      ? normalized.indexOf(`${separatorPrefix}${index + 1}`)
+      : normalized.length;
+
+    if (current < 0 || next < 0 || next <= current) {
+      return null;
+    }
+
+    const raw = normalized.slice(current, next);
+    const cleaned = raw
+      .replace(`${separatorPrefix}${index}`, "")
+      .replaceAll(`${separatorPrefix}END`, "")
+      .trim();
+
+    if (!cleaned) {
+      return null;
+    }
+    pieces.push(cleaned);
+  }
+
+  return pieces.length === expectedCount ? pieces : null;
+}
+
+async function translateWithGoogleAppsScript(text, settings) {
+  const endpoint = String(settings.gas?.endpoint || "").trim();
+  if (!endpoint) {
+    throw new Error("Google Apps Script Web App URL is not configured.");
+  }
+
+  const payload = {
+    q: text,
+    source: normalizeGasSource(settings.sourceLanguage),
+    target: normalizeGasTarget(settings.targetLanguage)
+  };
+
+  try {
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify(payload)
+    });
+    return await parseGasResponse(response);
+  } catch (postError) {
+    const url = new URL(endpoint);
+    url.searchParams.set("q", payload.q);
+    url.searchParams.set("source", payload.source);
+    url.searchParams.set("target", payload.target);
+    const response = await fetch(url.toString(), { method: "GET" });
+    return parseGasResponse(response);
+  }
+}
+
+async function parseGasResponse(response) {
+  const text = await response.text();
+  if (!response.ok) {
+    throw new Error(`Google Apps Script failed (${response.status}): ${text.slice(0, 300)}`);
+  }
+
+  try {
+    const data = JSON.parse(text);
+    if (data.ok === false) {
+      throw new Error(data.error || "Google Apps Script returned an error.");
+    }
+    return {
+      translatedText: data.translatedText || data.text || "",
+      provider: "gas"
+    };
+  } catch (error) {
+    if (text.trim().startsWith("{")) {
+      throw error;
+    }
+    return {
+      translatedText: text,
+      provider: "gas"
+    };
+  }
+}
+
+function normalizeGasSource(language) {
+  return !language || language === "auto" ? "" : normalizeGasTarget(language);
+}
+
+function normalizeGasTarget(language) {
+  if (language === "zh-Hant" || language === "zh-TW" || language === "zh") {
+    return "zh-TW";
+  }
+  if (language === "zh-Hans") {
+    return "zh-CN";
+  }
+  return language || "zh-TW";
 }
 
 async function translateWithLibreTranslate(text, settings) {

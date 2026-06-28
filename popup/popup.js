@@ -1,6 +1,8 @@
 const translateButton = document.querySelector("#translatePage");
+const selectionButton = document.querySelector("#translateSelection");
 const youtubeButton = document.querySelector("#youtubeCaptions");
 const toggleButton = document.querySelector("#toggleTranslations");
+const clearButton = document.querySelector("#clearTranslations");
 const optionsButton = document.querySelector("#openOptions");
 const statusEl = document.querySelector("#status");
 const providerLabel = document.querySelector("#providerLabel");
@@ -18,8 +20,16 @@ translateButton.addEventListener("click", async () => {
   await sendToActiveTab({ type: "translatePage" }, "Translating...");
 });
 
+selectionButton.addEventListener("click", async () => {
+  await sendToActiveTab({ type: "translateSelection" }, "Translating selection...");
+});
+
 toggleButton.addEventListener("click", async () => {
   await sendToActiveTab({ type: "toggleTranslations" }, "Toggling...");
+});
+
+clearButton.addEventListener("click", async () => {
+  await sendToActiveTab({ type: "clearTranslations" }, "Clearing...");
 });
 
 youtubeButton.addEventListener("click", async () => {
@@ -43,9 +53,23 @@ async function sendToActiveTab(message, pendingText) {
 
     if (message.type === "translatePage") {
       const { translated, skipped, failed } = response.summary;
-      setStatus(`Translated ${translated}. Skipped ${skipped}. Failed ${failed}.`);
+      const reason = response.summary.reason ? ` ${response.summary.reason}` : "";
+      setStatus(`Translated ${translated}. Skipped ${skipped}. Failed ${failed}.${reason}`);
+    } else if (message.type === "translateSelection") {
+      if (response.summary.translated) {
+        setStatus(`Selection translated (${response.summary.characters} chars).`);
+      } else {
+        setStatus(response.summary.reason || "Selection was not translated.");
+      }
+    } else if (message.type === "clearTranslations") {
+      setStatus(`Cleared ${response.summary.removed} translation item(s).`);
     } else if (message.type === "startYoutubeCaptions") {
-      setStatus("YouTube caption translation is running. Turn on video captions.");
+      if (response.summary?.mode === "youtubeTrack") {
+        setStatus(`YouTube track mode ready. Captions: ${response.summary.captions}.`);
+      } else {
+        const reason = response.summary?.fallbackReason ? ` ${response.summary.fallbackReason}` : "";
+        setStatus(`YouTube live mode running.${reason}`);
+      }
     } else {
       setStatus(response.visible ? "Translations visible." : "Translations hidden.");
     }
@@ -97,8 +121,10 @@ function assertSupportedTab(tab) {
 
 function setBusy(isBusy, text = "") {
   translateButton.disabled = isBusy;
+  selectionButton.disabled = isBusy;
   youtubeButton.disabled = isBusy;
   toggleButton.disabled = isBusy;
+  clearButton.disabled = isBusy;
   setStatus(text);
 }
 
@@ -109,6 +135,7 @@ function setStatus(text) {
 function providerName(provider) {
   const labels = {
     libretranslate: "LibreTranslate",
+    gas: "Google Apps Script",
     azure: "Azure Translator",
     openai: "OpenAI",
     google: "Google Cloud",

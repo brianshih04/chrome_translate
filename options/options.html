@@ -17,6 +17,7 @@
             Provider
             <select id="provider">
               <option value="libretranslate">LibreTranslate</option>
+              <option value="gas">Google Apps Script</option>
               <option value="azure">Azure Translator</option>
               <option value="openai">OpenAI</option>
               <option value="google">Google Cloud Translation</option>
@@ -49,6 +50,23 @@
             Max characters per page
             <input id="maxCharactersPerPage" type="number" min="1000" step="1000">
           </label>
+
+          <label>
+            YouTube caption mode
+            <select id="youtubeMode">
+              <option value="auto">Auto: track, then live fallback</option>
+              <option value="track">Caption track only</option>
+              <option value="live">Live visible captions only</option>
+            </select>
+          </label>
+
+          <label>
+            Fallback provider
+            <select id="fallbackProvider">
+              <option value="libretranslate">LibreTranslate</option>
+              <option value="none">None</option>
+            </select>
+          </label>
         </section>
 
         <section>
@@ -60,6 +78,14 @@
           <label>
             API key
             <input id="libreApiKey" type="password" autocomplete="off">
+          </label>
+        </section>
+
+        <section>
+          <h2>Google Apps Script</h2>
+          <label>
+            Web App URL
+            <input id="gasEndpoint" type="url" placeholder="https://script.google.com/macros/s/.../exec">
           </label>
         </section>
 

@@ -6,8 +6,11 @@ const fields = {
   sourceLanguage: document.querySelector("#sourceLanguage"),
   targetLanguage: document.querySelector("#targetLanguage"),
   maxCharactersPerPage: document.querySelector("#maxCharactersPerPage"),
+  youtubeMode: document.querySelector("#youtubeMode"),
+  fallbackProvider: document.querySelector("#fallbackProvider"),
   libreEndpoint: document.querySelector("#libreEndpoint"),
   libreApiKey: document.querySelector("#libreApiKey"),
+  gasEndpoint: document.querySelector("#gasEndpoint"),
   azureEndpoint: document.querySelector("#azureEndpoint"),
   azureRegion: document.querySelector("#azureRegion"),
   azureApiKey: document.querySelector("#azureApiKey"),
@@ -43,8 +46,11 @@ async function loadSettings() {
   fields.sourceLanguage.value = settings.sourceLanguage;
   fields.targetLanguage.value = settings.targetLanguage;
   fields.maxCharactersPerPage.value = settings.maxCharactersPerPage;
+  fields.youtubeMode.value = settings.youtubeMode || "auto";
+  fields.fallbackProvider.value = settings.fallbackProvider || "libretranslate";
   fields.libreEndpoint.value = settings.libretranslate.endpoint;
   fields.libreApiKey.value = settings.libretranslate.apiKey;
+  fields.gasEndpoint.value = settings.gas?.endpoint || "";
   fields.azureEndpoint.value = settings.azure.endpoint;
   fields.azureRegion.value = settings.azure.region;
   fields.azureApiKey.value = settings.azure.apiKey;
@@ -61,9 +67,14 @@ function readSettings() {
     sourceLanguage: fields.sourceLanguage.value || "auto",
     targetLanguage: fields.targetLanguage.value,
     maxCharactersPerPage: Number(fields.maxCharactersPerPage.value || 60000),
+    youtubeMode: fields.youtubeMode.value,
+    fallbackProvider: fields.fallbackProvider.value,
     libretranslate: {
       endpoint: fields.libreEndpoint.value,
       apiKey: fields.libreApiKey.value
+    },
+    gas: {
+      endpoint: fields.gasEndpoint.value
     },
     azure: {
       endpoint: fields.azureEndpoint.value,

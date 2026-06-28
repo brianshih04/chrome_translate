@@ -16,6 +16,21 @@
   display: none !important;
 }
 
+.avision-translator-selection-popup {
+  position: absolute;
+  z-index: 2147483647;
+  max-width: min(420px, calc(100vw - 24px));
+  border: 1px solid #bed1cc;
+  border-radius: 6px;
+  padding: 10px 12px;
+  color: #17211f;
+  background: #ffffff;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.18);
+  font-family: Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
 .avision-youtube-caption-overlay {
   position: absolute;
   left: 50%;
