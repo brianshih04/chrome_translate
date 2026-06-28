@@ -131,7 +131,7 @@ async function translatePage(settings) {
       node.setAttribute(TRANSLATED_ATTR, "true");
       translated += 1;
     } catch (error) {
-      placeholder.textContent = `Translation failed: ${error.message || error}`;
+      placeholder.textContent = `Translation failed: ${formatUserFacingError(error)}`;
       placeholder.classList.add("avision-translator-error");
       failed += 1;
     }
@@ -277,9 +277,9 @@ async function translateSelection() {
     popup.dataset.provider = result.provider;
     return { translated: true, characters: text.length };
   } catch (error) {
-    updateSelectionPopup(popup, `Translation failed: ${error.message || error}`);
+    updateSelectionPopup(popup, `Translation failed: ${formatUserFacingError(error)}`);
     popup.classList.add("avision-translator-error");
-    return { translated: false, reason: error.message || String(error) };
+    return { translated: false, reason: formatUserFacingError(error) };
   }
 }
 
@@ -423,7 +423,7 @@ async function tryStartYoutubeTrackMode() {
       language: track.languageCode
     };
   } catch (error) {
-    return { ok: false, error: error.message || String(error) };
+    return { ok: false, error: formatUserFacingError(error) };
   }
 }
 
@@ -613,7 +613,7 @@ function startYoutubeCaptionRequest(caption) {
     })
     .catch((error) => {
       if (canUseYoutubeCaptionResult(requestId, caption)) {
-        overlay.textContent = `Translation failed: ${error.message || error}`;
+        overlay.textContent = `Translation failed: ${formatUserFacingError(error)}`;
         overlay.classList.add("avision-youtube-caption-error");
         overlay.classList.remove("avision-youtube-caption-hidden");
       }
@@ -710,6 +710,18 @@ function ensureYoutubeOverlay() {
 
 function normalizeText(text) {
   return String(text || "").replace(/\s+/g, " ").trim();
+}
+
+function formatUserFacingError(error) {
+  const message = error?.message || String(error || "");
+  if (
+    message.includes("Extension context invalidated")
+    || message.includes("Receiving end does not exist")
+    || message.includes("Could not establish connection")
+  ) {
+    return "Extension was reloaded. Please refresh this tab.";
+  }
+  return message;
 }
 
 function hasLetters(text) {
